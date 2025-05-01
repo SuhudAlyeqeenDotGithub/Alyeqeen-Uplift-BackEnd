@@ -1,8 +1,12 @@
 import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import User from "../models/userModel";
 import bcrypt from "bcryptjs";
 import asyncHandler from "express-async-handler";
-import { generateToken } from "../utils/shortFunctions";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/shortFunctions";
 
 // route "/signup"
 const signupUser = asyncHandler(async (req: Request, res: Response) => {
@@ -38,14 +42,21 @@ const signupUser = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (user) {
-    const userToken = generateToken(user.id);
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+
+    res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 24 * 60 * 60 * 1000,
+    });
 
     res.status(201).json({
       message: "User created successfully",
       userId: user.id,
       userName: user.userName,
       userEmail: user.userEmail,
-      userToken,
+      accessToken,
     });
   }
 });
@@ -77,15 +88,72 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     throw error;
   }
 
-  const userToken = generateToken(user.id);
+  const accessToken = generateAccessToken(user.id);
+  const refreshToken = generateRefreshToken(user.id);
+
+  res.cookie("refresh_token", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 24 * 60 * 60 * 1000,
+  });
 
   res.status(201).json({
-    message: "Login Successful",
+    message: "User created successfully",
     userId: user.id,
     userName: user.userName,
     userEmail: user.userEmail,
-    userToken,
+    accessToken,
   });
 });
 
-export default { signupUser, loginUser };
+const logoutUser = asyncHandler(async (req: Request, res: Response) => {
+  res.clearCookie("refresh_token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
+
+  res.status(200).json({ message: "Logged out successfully" });
+});
+
+const refreshToken = asyncHandler(async (req: Request, res: Response) => {
+  const token = req.cookies.refresh_token; // Renamed to avoid conflict with function parameter
+
+  if (!token) {
+    const error = new Error("No refresh token found. Please log in again.");
+    (error as any).statusCode = 401;
+    throw error;
+  }
+
+  // Verify the refresh token
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET as string);
+
+    // Type guard to ensure decoded is JwtPayload and contains userId
+    if (typeof decoded !== "string" && "userId" in decoded) {
+      const newAccessToken = generateAccessToken(decoded.userId); // You can define this function elsewhere
+      const newRefreshToken = generateRefreshToken(decoded.userId); // You can define this function elsewhere
+
+      // Set the new refresh token in a secure cookie
+      res.cookie("refresh_token", newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 60 * 1000, // 60 days in milliseconds
+      });
+
+      // Send the new access token to the client
+      res.json({
+        message: "Access token refreshed",
+        accessToken: newAccessToken,
+      });
+    } else {
+      throw new Error("Invalid token or missing userId");
+    }
+  } catch (err) {
+    res
+      .status(401)
+      .json({ message: "Invalid refresh token. Please log in again." });
+  }
+});
+
+export default { signupUser, loginUser, logoutUser, refreshToken };
