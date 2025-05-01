@@ -3,10 +3,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/userModel";
 import bcrypt from "bcryptjs";
 import asyncHandler from "express-async-handler";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-} from "../utils/shortFunctions";
+import { generateAccessToken, generateRefreshToken } from "../utils/shortFunctions";
 
 // route "/signup"
 const signupUser = asyncHandler(async (req: Request, res: Response) => {
@@ -26,9 +23,7 @@ const signupUser = asyncHandler(async (req: Request, res: Response) => {
 
   const userEmailExists = await User.findOne({ userEmail });
   if (userEmailExists) {
-    const error = new Error(
-      `User already has an account with this email: ${userEmail}. Please log in.`
-    );
+    const error = new Error(`User already has an account with this email: ${userEmail}. Please log in.`);
     (error as any).statusCode = 409;
     throw error;
   }
@@ -38,7 +33,7 @@ const signupUser = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.create({
     userName,
     userEmail,
-    password: hashedPassword,
+    password: hashedPassword
   });
 
   if (user) {
@@ -48,7 +43,7 @@ const signupUser = asyncHandler(async (req: Request, res: Response) => {
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 24 * 60 * 60 * 1000,
+      maxAge: 60 * 24 * 60 * 60 * 1000
     });
 
     res.status(201).json({
@@ -56,7 +51,7 @@ const signupUser = asyncHandler(async (req: Request, res: Response) => {
       userId: user.id,
       userName: user.userName,
       userEmail: user.userEmail,
-      accessToken,
+      accessToken
     });
   }
 });
@@ -73,9 +68,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findOne({ userEmail });
 
   if (!user) {
-    const error = new Error(
-      "This email is not registered with us. Please create an account..."
-    );
+    const error = new Error("This email is not registered with us. Please create an account...");
     (error as any).statusCode = 400;
     throw error;
   }
@@ -94,7 +87,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   res.cookie("refresh_token", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 24 * 60 * 60 * 1000,
+    maxAge: 60 * 24 * 60 * 60 * 1000
   });
 
   res.status(201).json({
@@ -102,7 +95,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     userId: user.id,
     userName: user.userName,
     userEmail: user.userEmail,
-    accessToken,
+    accessToken
   });
 });
 
@@ -110,7 +103,7 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
   res.clearCookie("refresh_token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "strict"
   });
 
   res.status(200).json({ message: "Logged out successfully" });
@@ -129,30 +122,26 @@ const refreshToken = asyncHandler(async (req: Request, res: Response) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET as string);
 
-    // Type guard to ensure decoded is JwtPayload and contains userId
     if (typeof decoded !== "string" && "userId" in decoded) {
-      const newAccessToken = generateAccessToken(decoded.userId); // You can define this function elsewhere
-      const newRefreshToken = generateRefreshToken(decoded.userId); // You can define this function elsewhere
+      const newAccessToken = generateAccessToken(decoded.userId);
+      const newRefreshToken = generateRefreshToken(decoded.userId);
 
-      // Set the new refresh token in a secure cookie
       res.cookie("refresh_token", newRefreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        maxAge: 60 * 60 * 24 * 60 * 1000, // 60 days in milliseconds
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 60 * 1000
       });
 
-      // Send the new access token to the client
       res.json({
         message: "Access token refreshed",
-        accessToken: newAccessToken,
+        accessToken: newAccessToken
       });
     } else {
       throw new Error("Invalid token or missing userId");
     }
   } catch (err) {
-    res
-      .status(401)
-      .json({ message: "Invalid refresh token. Please log in again." });
+    res.status(401).json({ message: "Invalid refresh token. Please log in again." });
   }
 });
 
