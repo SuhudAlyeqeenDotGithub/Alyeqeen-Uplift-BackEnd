@@ -7,9 +7,9 @@ import { generateAccessToken, generateRefreshToken } from "../utils/shortFunctio
 
 // route "/signup"
 const signupUser = asyncHandler(async (req: Request, res: Response) => {
-  const { userName, userEmail, password, password2 } = req.body;
+  const { userName, userEmail, password, confirmPassword } = req.body;
 
-  if (password !== password2) {
+  if (password !== confirmPassword) {
     const error = new Error("Password does not match");
     (error as any).statusCode = 400;
     throw error;
