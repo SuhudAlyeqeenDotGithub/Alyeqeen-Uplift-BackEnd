@@ -33,17 +33,26 @@ const signupUser = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.create({
     userName,
     userEmail,
-    password: hashedPassword
+    password: hashedPassword,
+    authenticationType: "Traditional"
   });
 
   if (user) {
     const accessToken = generateAccessToken(user.id);
     const refreshToken = generateRefreshToken(user.id);
 
-    res.cookie("refresh_token", refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 24 * 60 * 60 * 1000
+      maxAge: 60 * 24 * 60 * 60 * 1000,
+      sameSite: "lax"
+    });
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 15 * 60 * 1000,
+      sameSite: "lax"
     });
 
     res.status(201).json({
@@ -51,7 +60,7 @@ const signupUser = asyncHandler(async (req: Request, res: Response) => {
       userId: user.id,
       userName: user.userName,
       userEmail: user.userEmail,
-      accessToken
+      authenticationType: user.authenticationType
     });
   }
 });
@@ -84,10 +93,16 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = generateAccessToken(user.id);
   const refreshToken = generateRefreshToken(user.id);
 
-  res.cookie("refresh_token", refreshToken, {
+  res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 24 * 60 * 60 * 1000
+  });
+
+  res.cookie("accessToken", accessToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 1000
   });
 
   res.status(201).json({
@@ -95,22 +110,27 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     userId: user.id,
     userName: user.userName,
     userEmail: user.userEmail,
-    accessToken
+    authenticationType: user.authenticationType
   });
 });
 
 const logoutUser = asyncHandler(async (req: Request, res: Response) => {
-  res.clearCookie("refresh_token", {
+  res.clearCookie("refreshToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict"
+    sameSite: "lax"
+  });
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax"
   });
 
   res.status(200).json({ message: "Logged out successfully" });
 });
 
-const refreshToken = asyncHandler(async (req: Request, res: Response) => {
-  const token = req.cookies.refresh_token; // Renamed to avoid conflict with function parameter
+const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
+  const token = req.cookies.refreshToken;
 
   if (!token) {
     const error = new Error("No refresh token found. Please log in again.");
@@ -124,25 +144,26 @@ const refreshToken = asyncHandler(async (req: Request, res: Response) => {
 
     if (typeof decoded !== "string" && "userId" in decoded) {
       const newAccessToken = generateAccessToken(decoded.userId);
-      const newRefreshToken = generateRefreshToken(decoded.userId);
 
-      res.cookie("refresh_token", newRefreshToken, {
+      res.cookie("accessToken", newAccessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 60 * 1000
+        maxAge: 60 * 60 * 1000
       });
 
       res.json({
-        message: "Access token refreshed",
-        accessToken: newAccessToken
+        message: "Access token refreshed"
       });
     } else {
-      throw new Error("Invalid token or missing userId");
+      const error = new Error("Invalid refresh token. Please log in again.");
+      (error as any).statusCode = 401;
+      throw error;
     }
   } catch (err) {
-    res.status(401).json({ message: "Invalid refresh token. Please log in again." });
+    const error = new Error(err as any);
+    (error as any).statusCode = 401;
+    throw error;
   }
 });
 
-export default { signupUser, loginUser, logoutUser, refreshToken };
+export default { signupUser, loginUser, logoutUser, refreshAccessToken };

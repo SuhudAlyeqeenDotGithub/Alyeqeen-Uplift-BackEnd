@@ -19,7 +19,8 @@ passport.use(
           googleId: profile.id,
           userName: profile.displayName,
           userEmail: profile.emails?.[0].value || "",
-          profileImage: profile.photos?.[0].value || ""
+          profileImage: profile.photos?.[0].value || "",
+          authenticationType: "Google"
         };
 
         // Check if user exists

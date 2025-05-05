@@ -18,8 +18,9 @@ router.get(
   }),
   (req: Request, res: Response) => {
     // Redirect user to home page after successful login
-    const accessToken = (req.user as { _accessToken: string })._accessToken;
-    const refreshToken = (req.user as { _refreshToken: string })._refreshToken;
+    const user = req.user as any; // Type assertion to access user properties
+    const accessToken = user._accessToken;
+    const refreshToken = user._refreshToken;
 
     // Store refresh token in httpOnly cookie
     res.cookie("refresh_token", refreshToken, {
@@ -29,7 +30,14 @@ router.get(
       maxAge: 60 * 60 * 24 * 60 * 1000
     });
 
-    res.json({ accessToken });
+    res.status(200).json({
+      message: "Google login successful",
+      userId: user.id,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      authenticationType: user.authenticationType,
+      accessToken
+    });
   }
 );
 
