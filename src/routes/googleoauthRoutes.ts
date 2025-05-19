@@ -30,14 +30,7 @@ router.get(
       maxAge: 60 * 60 * 24 * 60 * 1000
     });
 
-    res.status(200).json({
-      message: "Google login successful",
-      userId: user.id,
-      userName: user.userName,
-      userEmail: user.userEmail,
-      authenticationType: user.authenticationType,
-      accessToken
-    });
+    res.redirect("http://localhost:3000/main");
   }
 );
 

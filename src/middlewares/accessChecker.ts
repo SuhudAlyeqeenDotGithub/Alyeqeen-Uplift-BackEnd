@@ -25,3 +25,5 @@ const accessChecker = (req: Request, res: Response, next: NextFunction) => {
     next(err);
   }
 };
+
+export {accessChecker};

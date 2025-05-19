@@ -82,7 +82,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     throw error;
   }
 
-  const passwordIsCorrect = await bcrypt.compare(password, user.password);
+  const passwordIsCorrect = await bcrypt.compare(password, user.password ?? "");
 
   if (!passwordIsCorrect) {
     const error = new Error("Incorrect Password for the associated email");
@@ -120,7 +120,7 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax"
   });
-  res.clearCookie("refreshToken", {
+  res.clearCookie("accessToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax"
@@ -166,4 +166,23 @@ const refreshAccessToken = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
+const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    const error = new Error("User not found");
+    (error as any).statusCode = 404;
+    throw error;
+  }
+
+  res.status(200).json({
+    userId: user.id,
+    userName: user.userName,
+    userEmail: user.userEmail,
+    authenticationType: user.authenticationType
+  });
+});
+
 export default { signupUser, loginUser, logoutUser, refreshAccessToken };
+export { getUserProfile };

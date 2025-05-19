@@ -9,6 +9,8 @@ import passport from "passport";
 import "./config/googleoauth/passport";
 import dotenv from "dotenv";
 dotenv.config();
+import { accessChecker } from "./middlewares/accessChecker";
+import { getUserProfile } from "./controllers/userController";
 
 connectDatabase();
 const PORT = process.env.PORT || 5000;
@@ -28,6 +30,7 @@ app.use(passport.initialize());
 
 app.use("/api/users", userRoutes);
 app.use(googleoauthRoutes);
+app.get("/api/users/getUserProfile", getUserProfile, accessChecker);
 
 app.use(errorHandler);
 
