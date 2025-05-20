@@ -9,7 +9,7 @@ import passport from "passport";
 import "./config/googleoauth/passport";
 import dotenv from "dotenv";
 dotenv.config();
-import { accessChecker } from "./middlewares/accessChecker";
+import { accessTokenChecker, refreshTokenChecker } from "./middlewares/accessChecker";
 import { getUserProfile } from "./controllers/userController";
 
 connectDatabase();
@@ -30,7 +30,7 @@ app.use(passport.initialize());
 
 app.use("/api/users", userRoutes);
 app.use(googleoauthRoutes);
-app.get("/api/users/getUserProfile", getUserProfile, accessChecker);
+app.get("/api/users/getUserProfile", refreshTokenChecker, getUserProfile);
 
 app.use(errorHandler);
 

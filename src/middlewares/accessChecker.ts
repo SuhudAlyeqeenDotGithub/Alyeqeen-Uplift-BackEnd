@@ -1,29 +1,63 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const accessChecker = (req: Request, res: Response, next: NextFunction) => {
+const accessTokenChecker = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
+    const token = req.cookies.accessToken;
 
     if (!token) {
-      const error = new Error("No token provided");
+      const error = new Error("No Access Token Found");
       (error as any).status = 401;
       throw error;
     }
 
-    jwt.verify(token, process.env.JWT_SECRET as string, (err, decoded) => {
-      if (err) {
-        const error = new Error("Invalid token");
-        (error as any).status = 403;
-        return next(error);
-      }
+    jwt.verify(
+      token,
+      process.env.JWT_ACCESS_TOKEN_SECRET_KEY as string,
+      (err: jwt.VerifyErrors | null, decoded: any) => {
+        if (err) {
+          const error = new Error("Invalid token");
+          (error as any).status = 403;
+          return next(error);
+        }
 
-      req.user = decoded;
-      next();
-    });
+        req.user = decoded.userId;
+        next();
+      }
+    );
   } catch (err) {
     next(err);
   }
 };
 
-export {accessChecker};
+const refreshTokenChecker = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = req.cookies.refreshToken;
+
+    if (!token) {
+      const error = new Error("No Refresh Token Found");
+      (error as any).status = 401;
+      throw error;
+    }
+
+    jwt.verify(
+      token,
+      process.env.JWT_REFRESH_TOKEN_SECRET_KEY as string,
+      (err: jwt.VerifyErrors | null, decoded: any) => {
+        if (err) {
+          const error = new Error("Invalid token");
+          (error as any).status = 403;
+          return next(error);
+        }
+
+        req.user = decoded.userId;
+
+        next();
+      }
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+export { accessTokenChecker, refreshTokenChecker };
